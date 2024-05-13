@@ -34,8 +34,16 @@ public class BookController {
     @PostMapping("/book")
     public ResponseEntity<?>  postBook(@RequestBody BookDtoBase bookDTO) 
     {
+        Optional<Book> opBook = bRepo.findByIsbn(bookDTO.getIsbn());
+
+        if(opBook.isPresent())
+        {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Book already exist.");
+        }
+
         Book newBook = bConv.BookDtoBaseToBook(bookDTO);
-        return ResponseEntity.ok(bRepo.save(newBook));
+        Book savedBook = bRepo.save(newBook);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedBook);
     }
     
     @GetMapping("/books")
@@ -45,12 +53,18 @@ public class BookController {
     }
     
     @GetMapping("/book/{id}")
-    public Book getBook(@PathVariable Integer id) 
+    public ResponseEntity<?> getBook(@PathVariable Integer id) 
     {
-        return bRepo.findById(id).get();
+        Optional<Book> opBook = bRepo.findById(id);
+
+        if (opBook.isPresent()) {
+            return ResponseEntity.ok(opBook.get());
+        }
+
+        return ResponseEntity.notFound().build();
     };
 
-    @PutMapping("/book/{id}}")
+    @PutMapping("/book/{id}")
     public ResponseEntity<?> putBook(@PathVariable Integer id, @RequestBody BookPutRqst bookPutRqst) 
     {
         Optional<Book> book = bRepo.findById(id);
@@ -79,8 +93,6 @@ public class BookController {
             return new ResponseEntity<String>("No book with id " + id, HttpStatus.NOT_FOUND);
 
     }
-
-
 }
 
 

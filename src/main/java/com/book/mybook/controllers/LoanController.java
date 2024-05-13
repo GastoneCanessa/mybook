@@ -22,11 +22,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PutMapping;
 
-
-
 @RestController
-public class LoanController 
-{
+public class LoanController {
     @Autowired
     LoanRepository lRepo;
 
@@ -40,10 +37,16 @@ public class LoanController
     BookkRepository bRepo;
 
     @PostMapping("/loans")
-    public ResponseEntity<?> postLoan(@RequestBody LoanDtoBase loanDto) 
-    {  
-        Loan newLoan = lConv.loanDtoBaseToLoan(loanDto);
-        return ResponseEntity.ok(lRepo.save(newLoan));
+    public ResponseEntity<?> postLoan(@RequestBody LoanDtoBase loanDto) {
+        try {
+            Loan newLoan = lConv.loanDtoBaseToLoan(loanDto);
+            if (newLoan.getBook().isCurrentlyLoaned()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Book is already loaned out.");
+            }
+            return ResponseEntity.ok(lRepo.save(newLoan));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     @GetMapping("/loans")
@@ -59,28 +62,24 @@ public class LoanController
     @PutMapping("/loans/{id}")
     public ResponseEntity<?> putMethodName(@PathVariable Integer id, @RequestBody LoanDtoBase loanDto) {
         Optional<Loan> loan = lRepo.findById(id);
-        if (loan.isPresent())
-        {
+        if (loan.isPresent()) {
             Loan existingLoan = loan.get();
             existingLoan.setDueDate(loanDto.getDueDate());
             existingLoan.setLoanDate(loanDto.getLoanDate());
-            existingLoan.setReturnDate(loanDto.getLoanDate());
+            existingLoan.setReturnDate(loanDto.getReturnDate());
             existingLoan.setUser(uRepo.findById(loanDto.getUserId()).get());
             existingLoan.setBook(bRepo.findById(loanDto.getBookId()).get());
 
             Loan savedLoan = lRepo.save(existingLoan);
             return new ResponseEntity<Loan>(savedLoan, HttpStatus.OK);
-        }
-        else
+        } else
             return new ResponseEntity<String>("No loan with id " + id, HttpStatus.NOT_FOUND);
     }
 
     @DeleteMapping("/loans/{id}")
-    public ResponseEntity<?> delete(@PathVariable Integer id)
-    {
+    public ResponseEntity<?> delete(@PathVariable Integer id) {
         Optional<Loan> loan = lRepo.findById(id);
-        if(loan.isPresent())
-        {
+        if (loan.isPresent()) {
             lRepo.deleteById(id);
             return new ResponseEntity<String>("Loan deleted", HttpStatus.OK);
         } else

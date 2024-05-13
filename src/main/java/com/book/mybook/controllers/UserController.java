@@ -20,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-
-
 @RestController
 public class UserController {
 
@@ -32,32 +30,48 @@ public class UserController {
     UserConverter uConv;
 
     @PostMapping("/users")
-    public ResponseEntity<?> postUser(@RequestBody UserDtoBase userDto) 
-    {
+    public ResponseEntity<?> postUser(@RequestBody UserDtoBase userDto) {
+        // Verifica se esiste già un utente con lo stesso username
+        Optional<User> existingUser = uRepo.findByUsername(userDto.getUsername());
+        if (existingUser.isPresent()) {
+            // Se l'utente esiste già, restituisci un messaggio di errore
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username already in use.");
+        }
+        // Converte il DTO in un oggetto User
         User newUser = uConv.userDtoBaseToUser(userDto);
-        return ResponseEntity.ok(uRepo.save(newUser));
+        // Salva il nuovo utente nel database
+        User savedUser = uRepo.save(newUser);
+        // Restituisci il nuovo utente salvato
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
     }
 
     @GetMapping("/users")
-    public List<User> getUsers(@RequestParam String param) {
+    public List<User> getUsers() {
         return uRepo.findAll();
     }
 
     @GetMapping("/users/{id}")
-    public User getUser(@PathVariable Integer id) {
-        return uRepo.findById(id).get();
+    public ResponseEntity<?> getUser(@PathVariable Integer id) {
+        // Cerca l'utente nel database per ID
+        Optional<User> user = uRepo.findById(id);
+
+        // Controlla se l'utente è presente
+        if (user.isPresent()) {
+            // Se l'utente è trovato, restituisci l'utente con stato HTTP 200 (OK)
+            return ResponseEntity.ok(user.get());
+        } else {
+            // Se l'utente non è trovato, restituisci uno stato HTTP 404 (Not Found)
+            return ResponseEntity.notFound().build();
+        }
     }
-    
+
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<?> deleteUSer(@PathVariable Integer id)
-    {
+    public ResponseEntity<?> deleteUSer(@PathVariable Integer id) {
         Optional<User> op = uRepo.findById(id);
-        if(op.isPresent())
-        {
+        if (op.isPresent()) {
             uRepo.deleteById(id);
             return new ResponseEntity<String>("User deleted", HttpStatus.OK);
-        }
-        else
+        } else
             return new ResponseEntity<String>("No user with id " + id, HttpStatus.NOT_FOUND);
     }
 
